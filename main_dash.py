@@ -7,7 +7,6 @@ from dash.dependencies import Input, Output, State, ALL
 from dash.dash_table import DataTable
 from googlesearch import search
 import pandas as pd
-import json
 import db_connection
 
 # Initialize the Dash app
