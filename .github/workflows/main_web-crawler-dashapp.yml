@@ -66,4 +66,4 @@ jobs:
         with:
           app-name: 'web-crawler-dashapp'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_BFE5BF077CD149AEA8A4AA618635F9B9 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_CAF2EBDF39674D71B3BB2C7F3B38A39C }}
