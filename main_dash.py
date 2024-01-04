@@ -8,6 +8,7 @@ from dash.dash_table import DataTable
 from googlesearch import search
 import pandas as pd
 import db_connection
+import gsearch as s
 
 # Initialize the Dash app
 app = dash.Dash(__name__)
@@ -71,18 +72,16 @@ def update_output(n_clicks, page_current, page_size, supplier_inputs, focus_inpu
     if n_clicks > 0:
         all_results = []
         for supplier_input, focus_input in zip(supplier_inputs, focus_inputs):
-            if focus_input:
-                query = supplier_input + " " + focus_input + " news"
-            else:
-                query = supplier_input + " news"
-            search_results = search(query, advanced=True, lang='en', num_results=10)
+            query = supplier_input + " " + focus_input 
+            search_results = s.google_search(query, s.my_api_key, s.my_cse_id, num=10)
+            # search_results = search(query, advanced=True, lang='en', num_results=10)
             for result in search_results:
-                if " — " in result.description:
-                    date, description = result.description.split(" — ", 1)
+                if " ... " in result['snippet']:
+                    date, description = result['snippet'].split(" ... ", 1)
                 else:
                     date = ""
-                    description = result.description
-                all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result.title, 'Date' : date, 'Description': description, 'URL': result.url})
+                    description = result['snippet']
+                all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result['title'], 'Date' : date, 'Description': description, 'URL': result['link']})
         page_start = page_current * page_size
         page_end = page_start + page_size
         
@@ -131,8 +130,8 @@ def generate_excel(n_clicks, all_results):
         df = pd.DataFrame(all_results)
         xlsx_io = io.BytesIO()
         writer = pd.ExcelWriter(xlsx_io, engine='xlsxwriter')
-        df.to_excel(writer, sheet_name="Sheet1")
-        writer.save()
+        df.to_excel(writer, sheet_name="Sheet1", index=False)
+        writer.close()
         xlsx_io.seek(0)
         data = base64.b64encode(xlsx_io.read()).decode("utf-8")
         return f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{data}"
