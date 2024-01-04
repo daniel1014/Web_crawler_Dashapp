@@ -11,7 +11,8 @@ import db_connection
 import gsearch as s
 
 # Initialize the Dash app
-app = dash.Dash(__name__)
+sheet=['https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = dash.Dash(__name__, external_stylesheets=sheet)
 
 # Define the app layout
 app.layout = html.Div([
