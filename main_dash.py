@@ -9,6 +9,7 @@ from googlesearch import search
 import pandas as pd
 import db_connection
 import gsearch as s
+import dash_bootstrap_components as dbc
 
 # Initialize the Dash app
 sheet=['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -17,6 +18,7 @@ app = dash.Dash(__name__, external_stylesheets=sheet)
 # Define the app layout
 app.layout = html.Div([
     html.H1("News Scraper"),
+    dcc.Download(id="download"),
     html.Div(id='input-container', children=[
         dcc.Input(id={'type':'supplier-input', 'index': 1}, type='text', placeholder="Enter Supplier"),
         dcc.Input(id={'type':'focus-input', 'index': 1}, type='text', placeholder="Enter Focus"),
@@ -35,12 +37,20 @@ app.layout = html.Div([
         ), 
         id='output-container'
     ),
-    html.Button('Save as Excel', id='save-button', n_clicks=0),
-    html.Div(id='download-link-container'),
-    html.A(id='download-link', download="output.xlsx", href="", target="_blank"),
-    html.Div(id='all-results', style={'display': 'none'}),
-    dcc.Store(id='all-results-store')
-])
+    html.Div([
+    dcc.Dropdown(
+        id='dropdown',
+        options=[  
+        {"label": "Excel file", "value": "excel"},
+        {"label": "CSV file", "value": "csv"},
+        ],
+        placeholder="Choose download file type. Default is Excel format!",
+        style={'width': '50%', 'margin-right': '0px'},
+        ),
+    html.Button('Download Result', id='save-button', n_clicks=0)
+],style={'display': 'flex', 'align-items': 'left'}),
+    dcc.Store(id='all-results-store'),
+],style={"margin": 30})
 
 # Callback to dynamically add input fields
 @app.callback(
@@ -75,7 +85,6 @@ def update_output(n_clicks, page_current, page_size, supplier_inputs, focus_inpu
         for supplier_input, focus_input in zip(supplier_inputs, focus_inputs):
             query = supplier_input + " " + focus_input 
             search_results = s.google_search(query, s.my_api_key, s.my_cse_id, num=10)
-            # search_results = search(query, advanced=True, lang='en', num_results=10)
             for result in search_results:
                 if " ... " in result['snippet']:
                     date, description = result['snippet'].split(" ... ", 1)
@@ -112,30 +121,28 @@ def update_output(n_clicks, page_current, page_size, supplier_inputs, focus_inpu
     else:
         return DataTable(id='table'), []   # Default return value
 
-@app.callback(
-    Output('download-link-container', 'children'),
-    [Input('download-link', 'href')]
-)
-def update_download_link(href):
-    if href != "":
-        return html.A('Download Excel file', id='download-link', download="output.xlsx", href=href, target="_blank")
+# @app.callback(
+#     Output('download-link-container', 'children'),
+#     [Input('download-link', 'href')]
+# )
+# def update_download_link(href):
+#     if href != "":
+#         return html.A('Download Excel file', id='download-link', download="output.xlsx", href=href, target="_blank")
 
 @app.callback(
-    Output('download-link', 'href'),
+    Output('download', 'data'),
     [Input('save-button', 'n_clicks')],
-    [State('all-results-store', 'data')]
+    [State('all-results-store', 'data'),
+     State('dropdown', 'value')],
+     prevent_initial_call=True
 )
 
-def generate_excel(n_clicks, all_results):
-    if n_clicks > 0 and all_results is not None:
-        df = pd.DataFrame(all_results)
-        xlsx_io = io.BytesIO()
-        writer = pd.ExcelWriter(xlsx_io, engine='xlsxwriter')
-        df.to_excel(writer, sheet_name="Sheet1", index=False)
-        writer.close()
-        xlsx_io.seek(0)
-        data = base64.b64encode(xlsx_io.read()).decode("utf-8")
-        return f"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{data}"
+def generate_excel(n_clicks, all_results, download_type):
+    df = pd.DataFrame(all_results)
+    if download_type == "csv":
+        return dcc.send_data_frame(df.to_csv, "news_output.csv")
+    else:
+        return dcc.send_data_frame(df.to_excel, "news_output.xlsx", sheet_name="news_output", index=False)
     
 # Add this callback function
 @app.callback(
