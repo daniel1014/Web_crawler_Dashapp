@@ -1,72 +1,122 @@
-import io
-import base64
 import dash
 from dash import dcc
+import dash_bootstrap_components as dbc
 from dash import html
 from dash.dependencies import Input, Output, State, ALL
 from dash.dash_table import DataTable
-from googlesearch import search
+from dash_ag_grid import AgGrid
 import pandas as pd
 import db_connection
 import gsearch as s
-import dash_bootstrap_components as dbc
 
 # Initialize the Dash app
-sheet=['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=sheet)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MORPH])
+data_demo = [{'supplier':"Enercon",'focus':'Supply Chain','num_search':'10'}]
+df_database_demo = pd.DataFrame(data_demo)
+new_line = [{'supplier':'','focus':'','num_search':'10'}]
+df_new_line = pd.DataFrame(new_line)
 
 # Define the app layout
-app.layout = html.Div([
+app.layout = dbc.Container([
     html.H1("News Scraper"),
     dcc.Download(id="download"),
-    html.Div(id='input-container', children=[
-        dcc.Input(id={'type':'supplier-input', 'index': 1}, type='text', placeholder="Enter Supplier"),
-        dcc.Input(id={'type':'focus-input', 'index': 1}, type='text', placeholder="Enter Focus"),
+    dbc.Row([
+        dbc.Col([
+            dbc.Input(id={'type':'supplier-input', 'index': 1}, type='text', placeholder="Enter Supplier", className='mb-2'),
+        ],width=2),
+        dbc.Col([
+            dbc.Input(id={'type':'focus-input', 'index': 1}, type='text', placeholder="Enter Focus", className='mb-2'),
+        ], width=2),
+        ], id='input-container'),
+    dbc.Row([
+        dbc.Col([
+            AgGrid(
+                id="table_input",
+                columnDefs=[
+                    {
+                        "headerName": "Supplier",
+                        "field": "supplier",
+                        "cellEditor": "agTextCellEditor",
+                         "cellEditorParams": {
+                         "maxLength": 20,
+                        },
+                    },
+                    {
+                        "headerName": "Focus",
+                        "field": "focus",
+                        "cellEditor": "agTextCellEditor",
+                         "cellEditorParams": {
+                         "maxLength": 20,
+                        },
+                    },
+                    {
+                        "headerName": "Number of Search",
+                        "field": "num_search",
+                        "cellEditor": "agSelectCellEditor",
+                        "cellEditorParams": {
+                            "values": [str(i) for i in range(5, 31, 5)]
+                        },
+                    },
+                ],
+                rowData=df_database_demo.to_dict("records"),
+                columnSize="sizeToFit",
+                defaultColDef={'editable': True, 'sortable': True, 'filter': True},
+                style={'height': '200px'},
+            )
+        ])
     ]),
-    html.Button('Add Input', id='add-input-button', n_clicks=0),
-    html.Button('Search', id='search-button', n_clicks=0),
-    html.Button('Upload to Database', id='upload-button', n_clicks=0),
-    html.Div(
-        DataTable(
-            id='table',
-            columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
-            data=[],
-            page_action='custom',
-            page_current=0,
-            page_size=10
-        ), 
-        id='output-container'
+    dbc.Row([
+        dbc.Col([
+            dbc.Button('Add Input', id='add-input-button', n_clicks=0, className='mb-2'),
+            dbc.Button('Search', id='search-button', n_clicks=0, className='mb-2'),
+            dbc.Button('Upload to AECOM Database', id='upload-button', n_clicks=0, className='mb-2'),
+        ]),
+    ]),
+    dbc.Row(
+        dbc.Col(
+            DataTable(
+                id='table',
+                columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
+                data=[],
+                page_action='custom',
+                page_current=0,
+                page_size=10
+            ), 
+            id='output-container'
+        )
     ),
-    html.Div([
-    dcc.Dropdown(
-        id='dropdown',
-        options=[  
-        {"label": "Excel file", "value": "excel"},
-        {"label": "CSV file", "value": "csv"},
-        ],
-        placeholder="Choose download file type. Default is Excel format!",
-        style={'width': '50%', 'margin-right': '0px'},
+    dbc.Row([
+        dbc.Col(
+            dcc.Dropdown(
+                id='dropdown',
+                options=[  
+                    {"label": "Excel file", "value": "excel"},
+                    {"label": "CSV file", "value": "csv"},
+                ],
+                placeholder="Choose download file type. Default is Excel format!",
+            ),width=4,
         ),
-    html.Button('Download Result', id='save-button', n_clicks=0)
-],style={'display': 'flex', 'align-items': 'left'}),
+        dbc.Col(
+            dbc.Button('Download Result', id='save-button', n_clicks=0),
+        width=2
+        )
+    ]),
     dcc.Store(id='all-results-store'),
-],style={"margin": 30})
+], fluid=True)
 
-# Callback to dynamically add input fields
+# Callback to add input fields in AgGrid table
 @app.callback(
-    Output('input-container', 'children'),
-    [Input('add-input-button', 'n_clicks')],
-    [State('input-container', 'children')]
+    Output('table_input', 'rowData'),
+    Input('add-input-button', 'n_clicks'),
+    Input('table_input', 'rowData'),
+    prevent_initial_call=True
 )
 
-def add_input(n_clicks, current_children):
+def add_input(n_clicks, rows):
+    df_input = pd.DataFrame(rows)
     if n_clicks > 0:
-        new_input = html.Div([
-            dcc.Input(id={'type': 'supplier-input', 'index': n_clicks + 1}, type='text', placeholder="Enter Supplier"),
-            dcc.Input(id={'type': 'focus-input', 'index': n_clicks + 1}, type='text', placeholder="Enter Focus"),
-        ])
-        current_children.append(new_input)
-    return current_children
+        df_input = pd.concat([df_input,df_new_line], ignore_index=True)
+    return df_input.to_dict("records")
 
 # Callback to update the page content
 @app.callback(
@@ -74,15 +124,16 @@ def add_input(n_clicks, current_children):
     [Input('search-button', 'n_clicks'),
      Input('table', 'page_current'),
      Input('table', 'page_size')],
-    [State({'type': 'supplier-input', 'index': ALL}, 'value'),
-     State({'type': 'focus-input', 'index': ALL}, 'value')]
+    [State('table_input', 'rowData')]
 )
-def update_output(n_clicks, page_current, page_size, supplier_inputs, focus_inputs):
+def update_output(n_clicks, page_current, page_size, table_input_data):
     page_current = 0 if page_current is None else page_current
     page_size = 10 if page_size is None else page_size
     if n_clicks > 0:
         all_results = []
-        for supplier_input, focus_input in zip(supplier_inputs, focus_inputs):
+        for row in table_input_data:
+            supplier_input = row['supplier']
+            focus_input = row['focus']
             query = supplier_input + " " + focus_input 
             search_results = s.google_search(query, s.my_api_key, s.my_cse_id, num=10)
             for result in search_results:
@@ -121,14 +172,7 @@ def update_output(n_clicks, page_current, page_size, supplier_inputs, focus_inpu
     else:
         return DataTable(id='table'), []   # Default return value
 
-# @app.callback(
-#     Output('download-link-container', 'children'),
-#     [Input('download-link', 'href')]
-# )
-# def update_download_link(href):
-#     if href != "":
-#         return html.A('Download Excel file', id='download-link', download="output.xlsx", href=href, target="_blank")
-
+# Callback to download the search results
 @app.callback(
     Output('download', 'data'),
     [Input('save-button', 'n_clicks')],
@@ -144,7 +188,7 @@ def generate_excel(n_clicks, all_results, download_type):
     else:
         return dcc.send_data_frame(df.to_excel, "news_output.xlsx", sheet_name="news_output", index=False)
     
-# Add this callback function
+# Callback to upload the search results to database
 @app.callback(
     Output('upload-button', 'children'),
     [Input('upload-button', 'n_clicks')],
@@ -155,7 +199,7 @@ def upload_to_database(n_clicks, all_results):
         db_connection.store_results(all_results)
         return 'Upload Successful'
     else:
-        return 'Upload to Database'
+        return 'Upload to AECOM Database'
     
 if __name__ == '__main__':
     app.run_server(debug=True)
