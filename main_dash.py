@@ -19,7 +19,7 @@ new_line = [{'supplier':'','focus':'','num_search':'10'}]
 # Define the app layout
 app.layout = dbc.Container([
     html.H1("News Scraper Tool (under development)"),
-    dcc.Markdown('''This tool is used to scrape news from Google Search Engine. The input is the supplier and focus. The output is the news title, date, description and URL. The output can be downloaded as Excel or CSV file. The input can be uploaded to AECOM database.''', style={'font-size': '18px'}),
+    dcc.Markdown('''This tool is used to scrape news from Google Search Engine. Please login with your username to load your historic input (a new username will be registered if it is not exisiting). Please enter your desired input query(s) including supplier, focus (eg. Enercon Supply Chain), and number of search. Once you click 'Search', an output table will be generated with the corresponding title, date, description and URL. The output can be downloaded as Excel or CSV file. The input can be uploaded to AECOM database.''', style={'font-size': '18px'}),
     dcc.Download(id="download"),
     dcc.Store(id='selected-rows-store', data=[]),
     dbc.Row([
@@ -39,7 +39,7 @@ app.layout = dbc.Container([
                     {
                         "headerName": "Index", 
                         "field": "index",
-                        'width': 30,
+                        'width':50,
                         "checkboxSelection": True,},
                     {
                         "headerName": "Supplier",
@@ -158,7 +158,7 @@ def update_table(login_clicks, add_input_clicks, delete_clicks, username, all_ro
             df_database['index'] = df_database.index
             return df_database.to_dict("records"), dbc.Alert("Login Successful", duration=3000, class_name="alert-success")
         except Exception as e:
-            return [], dbc.Alert(f"Login Failed. Error details:{e}", class_name="alert-warning")
+            return [], dbc.Alert(f"Login Failed. Error details:{str(e)}", class_name="alert-warning")
     elif button_id == 'add-input-button':
         df_input = pd.DataFrame(all_rows)
         df_input = df_input.reset_index(drop=True)
@@ -243,7 +243,7 @@ def upload_to_database_input(n_clicks, table_input_data, username):
             db_connection.upload_data(table_input_data, 'NewsInput', username) 
             return dbc.Alert("Upload Successful", duration=3000, class_name="alert-success")
         except Exception as e:
-            return dbc.Alert("Upload Failed. Error details:{e}", class_name="alert-warning")
+            return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="alert-warning")
     else:
         return None
     
