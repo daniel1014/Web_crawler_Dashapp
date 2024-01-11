@@ -41,14 +41,20 @@ def upload_data(data: list, table_name: str, username: str):
 
     # Create a cursor object to interact with the database
     cursor = cnxn.cursor()
-
-    # Upload data to the table
     schema = 'BMT'
+
     for record in data:
+        # Delete records if the current input data exists in the table
+        delete_query = f'''
+        DELETE FROM {schema}.{table_name}
+        WHERE supplier = ? AND focus = ? AND num_search = ? AND username = ?
+        '''
+        # Upload data to the table
         insert_query = f'''
             INSERT INTO {schema}.{table_name} (supplier, focus, num_search, username)
             VALUES (?, ?, ?, ?)
         '''
+        cursor.execute(delete_query, record['supplier'], record['focus'], record['num_search'], username)
         cursor.execute(insert_query, record['supplier'], record['focus'], record['num_search'], username)
 
     # Commit the changes to the database
