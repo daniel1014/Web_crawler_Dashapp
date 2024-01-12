@@ -20,12 +20,8 @@ def df_from_db(query: str) -> pd.DataFrame:
     params = read_db_conn_details()
     conn_str = "mssql+pyodbc:///?odbc_connect=" + params
     engine = create_engine(conn_str)
-    try:
-        df = pd.read_sql_query(text(query), con=engine.connect())
-        return df
-    except Exception as e:
-        print(f"Error reading data from the database: {str(e)}")
-        return None
+    df = pd.read_sql_query(text(query), con=engine.connect())
+    return df
 
 def upload_data(data: list, table_name: str, username: str):
     db_conn_details = dotenv_values(".env")
@@ -36,8 +32,12 @@ def upload_data(data: list, table_name: str, username: str):
         f"SERVER={db_conn_details['Server']};"
         f"DATABASE={db_conn_details['Database']};"
         f"UID={db_conn_details['User']};"
-        f"PWD={db_conn_details['Pass']}"
+        f"PWD={db_conn_details['Pass']};"
+        f"Encrypt=yes;"
+        f"TrustServerCertificate=no;"
+        f"Connection Timeout=30"
     )
+    
 
     # Create a cursor object to interact with the database
     cursor = cnxn.cursor()
