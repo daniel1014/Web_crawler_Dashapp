@@ -7,13 +7,14 @@ import pyodbc
 def read_db_conn_details() -> dict:
     """Output of this should be passed to the create_engine function of sqlalchemy"""
     config = dotenv_values(".env")
-    params = urllib.parse.quote_plus(
-        "Driver={SQL Server};"
-        + f"Server=tcp:{config['Server']},1433;"
-        + f"Database={config['Database']};"
-        + f"Uid={config['User']};"
-        + f"Pwd={config['Pass']};"
-    )
+    # params = urllib.parse.quote_plus(
+    #     "Driver={SQL Server};"
+    #     + f"Server=tcp:{config['Server']},1433;"
+    #     + f"Database={config['Database']};"
+    #     + f"Uid={config['User']};"
+    #     + f"Pwd={config['Pass']};"
+    # )
+    params = "Driver={SQL Server};Server=tcp:ratelibrary.database.windows.net,1433;Database=CostIntelIDA01;Uid=RLsqladmin;Pwd=4H$f8ci3nz;"
     return params
 
 def df_from_db(query: str) -> pd.DataFrame:
