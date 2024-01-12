@@ -14,7 +14,8 @@ def read_db_conn_details() -> dict:
     #     + f"Uid={config['User']};"
     #     + f"Pwd={config['Pass']};"
     # )
-    params = "Driver={SQL Server};Server=tcp:ratelibrary.database.windows.net,1433;Database=CostIntelIDA01;Uid=RLsqladmin;Pwd=4H$f8ci3nz;"
+    params = f"DRIVER=ODBC Driver 17 for SQL Server;SERVER=ratelibrary.database.windows.net;DATABASE=CostIntelIDA01;UID=RLsqladmin;PWD=4H$f8ci3nz;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30"
+    
     return params
 
 def df_from_db(query: str) -> pd.DataFrame:
