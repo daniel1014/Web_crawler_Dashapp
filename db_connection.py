@@ -30,16 +30,15 @@ def upload_data(data: list, table_name: str, username: str):
     # Establish a connection to the database
     cnxn = pyodbc.connect(
         f"DRIVER=ODBC Driver 17 for SQL Server;"
-        f"SERVER={config['Server']};"
-        f"DATABASE={config['Database']};"
-        f"UID={config['User']};"
-        f"PWD={config['Pass']};"
+        f"SERVER={server};"
+        f"DATABASE={database};"
+        f"UID={user};"
+        f"PWD={password};"
         f"Encrypt=yes;"
         f"TrustServerCertificate=no;"
         f"Connection Timeout=30"
     )
     
-
     # Create a cursor object to interact with the database
     cursor = cnxn.cursor()
     schema = 'BMT'
