@@ -8,20 +8,24 @@ from dash_ag_grid import AgGrid
 import pandas as pd
 import db_connection
 import gsearch as s
+import sentiment_analysis 
+import plotly.express as px 
 
 # Initialize the Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MORPH])
 data_demo = [{'supplier':"Enercon",'focus':'Supply Chain','num_search':'10'}]
 df_database_demo = pd.DataFrame(data_demo).reset_index()
 new_line = [{'supplier':'','focus':'','num_search':'10'}]
-# df_new_line = pd.DataFrame(new_line)
 
 # Define the app layout
 app.layout = dbc.Container([
     html.H1("News Scraper Tool (under development)"),
     dcc.Markdown('''This tool is used to scrape news from Google Search Engine. Please login with your username to load your historic input (a new username will be registered if it is not exisiting). Please enter your desired input query(s) including supplier, focus (eg. Enercon Supply Chain), and number of search. Once you click 'Search', an output table will be generated with the corresponding title, date, description and URL. The output can be downloaded as Excel or CSV file. The input can be uploaded to AECOM database.''', style={'font-size': '18px'}),
-    dcc.Download(id="download"),
+    dcc.Download(id="download-news-output"),
+    dcc.Download(id="download-sentiment-output"),
     dcc.Store(id='selected-rows-store', data=[]),
+    dcc.Store(id='news-output-store'),
+    dcc.Store(id='sentiment-output-store'),
     dbc.Row([
         dbc.Col([
             dbc.Input(id='username', type='text', placeholder="Enter Your Username", className='mb-2')
@@ -83,28 +87,15 @@ app.layout = dbc.Container([
             html.Div(id='upload-status')  # Placeholder for the alert callback
         ]),
     ]),
-    dbc.Row(
-        dbc.Col(
-            DataTable(
-                id='table_output',
-                columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
-                data=[],
-                page_action='custom',
-                page_current=0,
-                page_size=10,
-                style_cell={'textAlign': 'left'},
-                style_data_conditional=[
-                    {
-                        'if': {'column_id': 'URL'},
-                        'textDecoration': 'underline',
-                        'cursor': 'pointer'
-                    }
-                ],
-                tooltip_duration=None
-            ), 
-            id='output-container'
-        )
-    ),
+    dcc.Tabs(
+        id='tabs',
+        value='tab-1',
+        children=[
+            dcc.Tab(label='News Output', value='tab-1'),
+            dcc.Tab(label='Sentiment Analysis Results', value='tab-2'),
+            ],
+        ),
+    dcc.Loading(id="Loading", type="cube", children=[html.Div(id='tabs-content')]),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(
@@ -117,21 +108,23 @@ app.layout = dbc.Container([
             ),width=4,
         ),
         dbc.Col(
-            dbc.Button('Download Result', id='save-button', className='text-light bg-info'),
+            dbc.Button('Download News Output', id='save-button-news', className='text-light bg-info'),
         width=2
-        )
+        ),
+        dbc.Col(
+            dbc.Button('Download Sentiment Analysis Output', id='save-button-sentiment', className='text-light bg-info'),
+        width=2
+        ),
     ])
 ], fluid=True)
 
 @app.callback(
     Output('selected-rows-store', 'data'),
-    Input('table_input', 'selectedRows')
+    Input('table_input', 'selectedRows'),
+    prevent_initial_call=True
 )
 def update_selected_rows(selected):
-    # if selected is None:
-    #     raise dash.exceptions.PreventUpdate
     selected_store = selected
-    print(selected_store)
     return selected_store
 
 @app.callback(
@@ -178,57 +171,93 @@ def update_table(login_clicks, add_input_clicks, delete_clicks, username, all_ro
 
 # Callback to update the page content
 @app.callback(
-    [Output('table_output', 'data'), Output('table_output', 'tooltip_data')],
+    [Output('tabs-content', 'children'), 
+     Output('news-output-store', 'data'), 
+     Output('sentiment-output-store', 'data')],
     [Input('search-button', 'n_clicks'),
-     Input('table_output', 'page_current'),
-     Input('table_output', 'page_size')],
-    [State('table_input', 'rowData')]
+     Input('tabs', 'value')],
+    [State('table_input', 'rowData')],
+    prevent_initial_call=True
 )
-def update_output(n_clicks, page_current, page_size, table_input_data):
-    page_current = 0 if page_current is None else page_current
-    page_size = 10 if page_size is None else page_size
-    if n_clicks > 0:
-        all_results = []
-        for row in table_input_data:
-            supplier_input = row['supplier']
-            focus_input = row['focus']
-            num_search = int(row['num_search'])
-            query = supplier_input + " " + focus_input 
-            search_results = s.google_search(query, s.my_api_key, s.my_cse_id, num=num_search)
-            for result in search_results:
-                if " ... " in result['snippet']:
-                    date, description = result['snippet'].split(" ... ", 1)
-                else:
-                    date = ""
-                    description = result['snippet']
-                all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result['title'], 'Date' : date, 'Description': description, 'URL': result['link']})
-        page_start = page_current * page_size
-        page_end = page_start + page_size
-        tooltip_data=[
-            {
-                column: {'value': str(value), 'type': 'markdown'}
-                for column, value in row.items()
-            } for row in all_results
-        ]
-        return all_results[page_start:page_end], tooltip_data
-    else:
-        return [], []   # Default return value
+def update_output(n_clicks, tab, table_input_data):
+    all_results = []
+    sentiment_input = {}
+    # Search Results
+    for row in table_input_data:
+        supplier_input = row['supplier']
+        focus_input = row['focus']
+        num_search = int(row['num_search'])
+        query = supplier_input + " " + focus_input 
+        search_results = s.google_search(query, s.my_api_key, s.my_cse_id, num=num_search)
+        for result in search_results:
+            if " ... " in result['snippet']:
+                date, description = result['snippet'].split(" ... ", 1)
+            else:
+                date = ""
+                description = result['snippet']
+            all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result['title'], 'Date' : date, 'Description': description, 'URL': result['link']})
+    if tab == 'tab-1':
+        return DataTable(
+            id='table_output',
+            columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
+            data=all_results,
+            page_action='native',
+            page_current=0,
+            page_size=10,
+            style_cell={'textAlign': 'left'},
+            style_data_conditional=[
+                {
+                    'if': {'column_id': 'URL'},
+                    'textDecoration': 'underline',
+                    'cursor': 'pointer'
+                }
+            ],
+            tooltip_duration=None,
+            tooltip_data=[
+            {column: {'value': str(value), 'type': 'markdown'} for column, value in row.items()}
+            for row in all_results
+            ]     
+        ), all_results, dash.no_update
+    elif tab == 'tab-2':
+        # Sentiment Analysis 
+        for row in all_results:
+            sentiment_input[row['Supplier']+" "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
+            sentiment_input[row['Supplier']+" "+row['Focus']].append({row['Title']:row['Description'][:-4]})
+        sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
+        df_sentiment_result = pd.DataFrame(sentiment_result).T
+        print(df_sentiment_result)
+        fig = px.bar(df_sentiment_result, x=df_sentiment_result.index, y=df_sentiment_result.columns, title='Sentiment Analysis Results', text_auto=True, height=600)
+        return dcc.Graph(figure=fig), all_results, sentiment_result
 
-# Callback to download the search results
+# Callback to download the News Output
 @app.callback(
-    Output('download', 'data'),
-    [Input('save-button', 'n_clicks')],
-    [State('table_output', 'data'),
+    Output('download-news-output', 'data'),
+    [Input('save-button-news', 'n_clicks')],
+    [State('news-output-store', 'data'),
      State('dropdown', 'value')],
      prevent_initial_call=True
 )
-
 def generate_excel(n_clicks, all_results, download_type):
     df = pd.DataFrame(all_results)
     if download_type == "csv":
         return dcc.send_data_frame(df.to_csv, "news_output.csv")
     else:
         return dcc.send_data_frame(df.to_excel, "news_output.xlsx", sheet_name="news_output", index=False)
+    
+# Callback to download the Sentiment Analysis Results
+@app.callback(
+    Output('download-sentiment-output', 'data'),
+    [Input('save-button-sentiment', 'n_clicks')],
+    [State('sentiment-output-store', 'data'),
+     State('dropdown', 'value')],
+     prevent_initial_call=True
+)
+def generate_excel(n_clicks, sentiment_output, download_type):
+    df = pd.DataFrame(sentiment_output).T.reset_index().rename(columns={'index':'Supplier Focus'})
+    if download_type == "csv":
+        return dcc.send_data_frame(df.to_csv, "sentiment_analysis_output.csv")
+    else:
+        return dcc.send_data_frame(df.to_excel, "sentiment_analysis_output.xlsx", sheet_name="news_output", index=False)
     
 # Callback to upload the search input to database
 @app.callback(
