@@ -226,7 +226,7 @@ def update_output(n_clicks, tab, table_input_data):
         sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
         df_sentiment_result = pd.DataFrame(sentiment_result).T
         print(df_sentiment_result)
-        fig = px.bar(df_sentiment_result, x=df_sentiment_result.index, y=df_sentiment_result.columns, title='Sentiment Analysis Results', text_auto=True, height=600)
+        fig = px.bar(df_sentiment_result, x=df_sentiment_result.index, y=df_sentiment_result.columns, orientation='h', title='Sentiment Analysis Results', text_auto=True)
         return dcc.Graph(figure=fig), all_results, sentiment_result
 
 # Callback to download the News Output
