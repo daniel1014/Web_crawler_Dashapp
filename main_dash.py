@@ -107,15 +107,12 @@ app.layout = dbc.Container([
                 placeholder="Choose download file type. Default is Excel format!",
             ),width=4,
         ),
-        dbc.Col(
+        dbc.Col([
             dbc.Button('Download News Output', id='save-button-news', className='text-light bg-info'),
-        width=2
+            dbc.Button('Download Sentiment Analysis Output', id='save-button-sentiment', className='text-light bg-info'),],
+        width=4
         ),
-        dbc.Col(
-            dbc.Button('Download Sentiment Analysis Output', id='save-button-sentiment', className='text-light bg-info'),
-        width=2
-        ),
-    ])
+    ]),
 ], fluid=True)
 
 @app.callback(
@@ -188,7 +185,7 @@ def update_output(n_clicks, tab, table_input_data):
         focus_input = row['focus']
         num_search = int(row['num_search'])
         query = supplier_input + " " + focus_input 
-        search_results = s.google_search(query, s.my_api_key, s.my_cse_id, num=num_search)
+        search_results = s.google_search(query, num=num_search)
         for result in search_results:
             if " ... " in result['snippet']:
                 date, description = result['snippet'].split(" ... ", 1)
@@ -226,7 +223,7 @@ def update_output(n_clicks, tab, table_input_data):
         sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
         df_sentiment_result = pd.DataFrame(sentiment_result).T
         print(df_sentiment_result)
-        fig = px.bar(df_sentiment_result, x=df_sentiment_result.index, y=df_sentiment_result.columns, orientation='h', title='Sentiment Analysis Results', text_auto=True)
+        fig = px.bar(df_sentiment_result, x=df_sentiment_result.columns, y=df_sentiment_result.index, orientation='h', title='Sentiment Analysis Results', text_auto=True, labels={'value':'Sentiment Distribution', 'index':'Supplier Focus', 'variable':'Emotion'},  color_discrete_map={'positive':'green', 'neutral':'grey', 'negative':'red'})
         return dcc.Graph(figure=fig), all_results, sentiment_result
 
 # Callback to download the News Output

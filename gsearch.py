@@ -1,11 +1,15 @@
 from googleapiclient.discovery import build
 
-my_api_key = "AIzaSyAWd9YsJLvzIiQViBppiiy9L3w_osvsuyU" #The API_KEY you acquired
-my_cse_id = "c7176b7cccea54d9d" #The search-engine-ID you created
+my_api_key = "AIzaSyAWd9YsJLvzIiQViBppiiy9L3w_osvsuyU" # Save as environment variable in Azure secret later
+my_api_key_backup = "AIzaSyD3A7DAN2PxdzCkHnwFIBd8mVTUHl25bLY"   # Backup
+my_cse_id = "c7176b7cccea54d9d" # Save as environment variable in Azure secret later
 
-
-def google_search(search_term, api_key, cse_id, **kwargs):
-    service = build("customsearch", "v1", developerKey=api_key)
-    res = service.cse().list(q=search_term, cx=cse_id, **kwargs).execute()
+def google_search(search_term, **kwargs):
+    try:
+        service = build("customsearch", "v1", developerKey=my_api_key)
+        res = service.cse().list(q=search_term, cx=my_cse_id, **kwargs).execute()
+    except:
+        service = build("customsearch", "v1", developerKey=my_api_key_backup)
+        res = service.cse().list(q=search_term, cx=my_cse_id, **kwargs).execute()
     return res['items']
 
