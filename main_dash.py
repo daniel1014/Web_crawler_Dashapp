@@ -1,10 +1,9 @@
 import dash
-from dash import dcc
-import dash_bootstrap_components as dbc
-from dash import html
+from dash import html, dcc, ctx 
 from dash.dependencies import Input, Output, State, ALL
 from dash.dash_table import DataTable
 from dash_ag_grid import AgGrid
+import dash_bootstrap_components as dbc
 import pandas as pd
 import db_connection
 import gsearch as s
@@ -12,7 +11,7 @@ import sentiment_analysis
 import plotly.express as px 
 
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MORPH])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MORPH, dbc.icons.BOOTSTRAP])
 data_demo = [{'supplier':"Enercon",'focus':'Supply Chain','num_search':'10'}]
 df_database_demo = pd.DataFrame(data_demo).reset_index()
 new_line = [{'supplier':'','focus':'','num_search':'10'}]
@@ -23,16 +22,22 @@ app.layout = dbc.Container([
     dcc.Markdown('''This tool is used to scrape news from Google Search Engine. Please login with your username to load your historic input (a new username will be registered if it is not exisiting). Please enter your desired input query(s) including supplier, focus (eg. Enercon Supply Chain), and number of search. Once you click 'Search', an output table will be generated with the corresponding title, date, description and URL. The output can be downloaded as Excel or CSV file. The input can be uploaded to AECOM database.''', style={'font-size': '18px'}),
     dcc.Download(id="download-news-output"),
     dcc.Download(id="download-sentiment-output"),
-    dcc.Store(id='selected-rows-store', data=[]),
-    dcc.Store(id='news-output-store'),
-    dcc.Store(id='sentiment-output-store'),
+    dcc.Store(id='selected-rows-store', data=[]),   # Store the selected rows 
+    dcc.Store(id='news-output-store'),         # Store the news output for download
+    dcc.Store(id='sentiment-output-store'),    # Store the sentiment output for download
     dbc.Row([
         dbc.Col([
             dbc.Input(id='username', type='text', placeholder="Enter Your Username", className='mb-2')
             ],width=3),
         dbc.Col([
-            dbc.Button('Login (load your data)', id='login-button', className='text-light bg-primary'),
+            dbc.Button('Login (load your data)', id='login-button', className='btn btn-outline-dark'),
             html.Div(id='login-status')  # Placeholder for the alert callback
+            ])
+        ]),
+    dbc.Row([
+        dbc.Col([
+            dbc.Button(['[+] Add Input'], id='add-input-button', className='bg-light'),
+            dbc.Button('[-] Delete Selected Row', id='delete-input-button', className='bg-light')
             ])
         ]),
     dbc.Row([
@@ -79,23 +84,29 @@ app.layout = dbc.Container([
         ])
     ]),
     dbc.Row([
-        dbc.Col([
-            dbc.Button('Add Input', id='add-input-button', className='bg-light'),
-            dbc.Button('Delete Selected Row', id='delete-input-button', className='bg-light'),
-            dbc.Button('Search', id='search-button', n_clicks=0, className='text-success-emphasis bg-light'),
-            dbc.Button('Upload to AECOM Database', id='upload-button', className='text-warning-emphasis bg-light'),
-            html.Div(id='upload-status')  # Placeholder for the alert callback
-        ]),
-    ]),
-    dcc.Tabs(
-        id='tabs',
-        value='tab-1',
-        children=[
-            dcc.Tab(label='News Output', value='tab-1'),
-            dcc.Tab(label='Sentiment Analysis Results', value='tab-2'),
-            ],
-        ),
+    dbc.Col(
+        dbc.Button([html.I(className="bi bi-lightbulb"),' Search'], id='search-button', className='text-info bg-warning', size="lg",  style={'font-size': '19px', 'border-radius': '10px'}),
+        width="auto"
+    ),
+    dbc.Col(
+        dbc.Button([html.I(className="bi bi-bar-chart"),' Sentiment Analysis'], id='sentiment-button', className='text-info bg-warning', size="lg", style={'font-size': '19px', 'border-radius': '10px'}),
+        width="auto"
+    ),
+    ], justify="center", style={'margin-top': '15px'}),
     dcc.Loading(id="Loading", type="cube", children=[html.Div(id='tabs-content')]),
+    dcc.Tabs(id='tabs',className='custom-tabs-container'),
+    html.Hr(style={"height":"2px","border-width":"0","color":"gray","background-color":"gray"}),
+    dbc.Row([
+        dbc.Col([
+            dbc.Button([html.I(className="bi bi-database-up"),' Upload Input to AECOM Database'], 
+                        id='upload-button', 
+                        className='text-info-emphasis bg-light',
+                        style={"margin-bottom": "20px"},)],
+        width=2),
+        dbc.Col([
+            html.Div(id='upload-status')  # Placeholder for the alert callback
+        ],width=10),
+    ]),
     dbc.Row([
         dbc.Col(
             dcc.Dropdown(
@@ -108,13 +119,14 @@ app.layout = dbc.Container([
             ),width=4,
         ),
         dbc.Col([
-            dbc.Button('Download News Output', id='save-button-news', className='text-light bg-info'),
-            dbc.Button('Download Sentiment Analysis Output', id='save-button-sentiment', className='text-light bg-info'),],
-        width=4
+            dbc.Button([html.I(className="bi bi-download"),' Download News Output'], id='save-button-news', className='text-info bg-light'),
+            dbc.Button([html.I(className="bi bi-download"),' Download Sentiment Analysis Output'], id='save-button-sentiment', className='text-info bg-light')],
+        width=8
         ),
     ]),
 ], fluid=True)
 
+# Callback to update the selected rows
 @app.callback(
     Output('selected-rows-store', 'data'),
     Input('table_input', 'selectedRows'),
@@ -124,6 +136,7 @@ def update_selected_rows(selected):
     selected_store = selected
     return selected_store
 
+# Callback to update the input table
 @app.callback(
     [Output('table_input', 'rowData'), Output('login-status', 'children')],
     [Input('login-button', 'n_clicks'),
@@ -134,21 +147,17 @@ def update_selected_rows(selected):
     State('selected-rows-store', 'data')],
     prevent_initial_call=True
 )
-def update_table(login_clicks, add_input_clicks, delete_clicks, username, all_rows, selected_rows):
-    ctx = dash.callback_context
-    if not ctx.triggered:
-        raise dash.exceptions.PreventUpdate
-    else:
-        button_id = ctx.triggered[0]['prop_id'].split('.')[0]
+def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_rows, selected_rows):
+    button_id = ctx.triggered_id    # can use dash.callback_context for dash version > 1.16.0
 
     if button_id == 'login-button':
         try:
             df_database = db_connection.df_from_db(f"SELECT supplier, focus, num_search FROM BMT.NewsInput WHERE username = '{username}'")
             df_database = df_database.reset_index(drop=True)
             df_database['index'] = df_database.index
-            return df_database.to_dict("records"), dbc.Alert("Login Successful", duration=3000, class_name="alert-success")
+            return df_database.to_dict("records"), dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Login Successful"], duration=3000, class_name="text-light alert-success")
         except Exception as e:
-            return [], dbc.Alert(f"Login Failed. Error details:{str(e)}", class_name="alert-warning")
+            return [], dbc.Alert(f"Login Failed. Error details:{str(e)}", class_name="text-light alert-warning")
     elif button_id == 'add-input-button':
         df_input = pd.DataFrame(all_rows)
         df_input = df_input.reset_index(drop=True)
@@ -166,48 +175,50 @@ def update_table(login_clicks, add_input_clicks, delete_clicks, username, all_ro
         df_input['index'] = df_input.index
         return df_input.to_dict('records'), dash.no_update
 
-# Callback to update the page content
+# Callback to update the output table
 @app.callback(
-    [Output('tabs-content', 'children'), 
+    [Output('tabs','children'),
+     Output('tabs-content', 'children'), 
      Output('news-output-store', 'data'), 
      Output('sentiment-output-store', 'data')],
     [Input('search-button', 'n_clicks'),
-     Input('tabs', 'value')],
-    [State('table_input', 'rowData')],
+     Input('sentiment-button', 'n_clicks')],
+    [State('table_input', 'rowData'),
+     State('news-output-store', 'data')],
     prevent_initial_call=True
 )
-def update_output(n_clicks, tab, table_input_data):
+def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
     all_results = []
     sentiment_input = {}
+    tabs = []
     # Search Results
-    for row in table_input_data:
-        supplier_input = row['supplier']
-        focus_input = row['focus']
-        num_search = int(row['num_search'])
-        query = supplier_input + " " + focus_input 
-        search_results = s.google_search(query, num=num_search)
-        for result in search_results:
-            if " ... " in result['snippet']:
-                date, description = result['snippet'].split(" ... ", 1)
-            else:
-                date = ""
-                description = result['snippet']
-            all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result['title'], 'Date' : date, 'Description': description, 'URL': result['link']})
-    if tab == 'tab-1':
-        return DataTable(
+    if ctx.triggered_id == 'search-button':
+        for row in table_input_data:
+            supplier_input = row['supplier']
+            focus_input = row['focus']
+            num_search = int(row['num_search'])
+            query = supplier_input + " " + focus_input
+            tab_label = f"{supplier_input} - {focus_input}"         # Create tab label
+            tabs.append(dcc.Tab(label=tab_label, value=tab_label, className='text-primary-emphasis bg-white strong'))  # Add tab dynamically
+            search_results = s.google_search(query, num=num_search)
+            for result in search_results:
+                if " ... " in result['snippet']:
+                    date, description = result['snippet'].split(" ... ", 1)
+                else:
+                    date = ""
+                    description = result['snippet']
+                all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result['title'], 'Date' : date, 'Description': description, 'URL': result['link']})
+        return tabs, DataTable(
             id='table_output',
             columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
-            data=all_results,
-            page_action='native',
-            page_current=0,
-            page_size=10,
+            data=all_results[0:10],
+            # page_action='native',
+            # page_current=0,
+            # page_size=10,
             style_cell={'textAlign': 'left'},
-            style_data_conditional=[
-                {
-                    'if': {'column_id': 'URL'},
-                    'textDecoration': 'underline',
-                    'cursor': 'pointer'
-                }
+            style_cell_conditional=[
+                {'if': {'column_id': 'Description'}, 'maxWidth': '700px'},  # Set width for Description column
+                {'if': {'column_id': 'URL'}, 'textDecoration': 'underline', 'cursor': 'pointer'}
             ],
             tooltip_duration=None,
             tooltip_data=[
@@ -215,16 +226,46 @@ def update_output(n_clicks, tab, table_input_data):
             for row in all_results
             ]     
         ), all_results, dash.no_update
-    elif tab == 'tab-2':
+    elif ctx.triggered_id == 'sentiment-button':
         # Sentiment Analysis 
-        for row in all_results:
+        if news_output_data is None:
+            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-light alert-danger", duration=4000), dash.no_update, dash.no_update
+        for row in news_output_data:
             sentiment_input[row['Supplier']+" "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
             sentiment_input[row['Supplier']+" "+row['Focus']].append({row['Title']:row['Description'][:-4]})
         sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
         df_sentiment_result = pd.DataFrame(sentiment_result).T
-        print(df_sentiment_result)
         fig = px.bar(df_sentiment_result, x=df_sentiment_result.columns, y=df_sentiment_result.index, orientation='h', title='Sentiment Analysis Results', text_auto=True, labels={'value':'Sentiment Distribution', 'index':'Supplier Focus', 'variable':'Emotion'},  color_discrete_map={'positive':'green', 'neutral':'grey', 'negative':'red'})
-        return dcc.Graph(figure=fig), all_results, sentiment_result
+        return tabs, dcc.Graph(figure=fig), all_results, sentiment_result
+
+@app.callback(
+    Output('tabs-content', 'children', allow_duplicate=True),
+    Input('tabs', 'value'),
+    State('news-output-store', 'data'),
+    prevent_initial_call=True
+)
+def render_content_tabs(tabs, table_data):
+    if tabs != "tab-1":             # tab-1 is the default tab at the initial load of the app
+        # Filter the table data based on the selected tab
+        print(tabs)
+        supplier, focus =  tabs.split(' - ')
+        print(supplier, focus)
+        filtered_data = [row for row in table_data if row['Supplier'] == supplier and row['Focus'] == focus]
+        return DataTable(
+            id='table_output',
+            columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
+            data=filtered_data,
+            style_cell={'textAlign': 'left'},
+            style_cell_conditional=[
+                {'if': {'column_id': 'Description'}, 'width': '25px'},  # Set width for Description column
+                {'if': {'column_id': 'URL'}, 'textDecoration': 'underline', 'cursor': 'pointer'}
+            ],
+            tooltip_duration=None,
+            tooltip_data=[
+            {column: {'value': str(value), 'type': 'markdown'} for column, value in row.items()}
+            for row in filtered_data
+            ]     
+        )
 
 # Callback to download the News Output
 @app.callback(
@@ -267,9 +308,9 @@ def upload_to_database_input(n_clicks, table_input_data, username):
     if n_clicks > 0:
         try:
             db_connection.upload_data(table_input_data, 'NewsInput', username) 
-            return dbc.Alert("Upload Successful", duration=3000, class_name="alert-success")
+            return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Upload Successful"], duration=3000, class_name="text-light alert-success")
         except Exception as e:
-            return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="alert-warning")
+            return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning")
     else:
         return None
     
