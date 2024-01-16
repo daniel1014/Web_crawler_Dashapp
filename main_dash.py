@@ -31,8 +31,10 @@ app.layout = dbc.Container([
             ],width=3),
         dbc.Col([
             dbc.Button('Login (load your data)', id='login-button', className='btn btn-outline-dark'),
+            ],width='auto'),
+        dbc.Col([
             html.Div(id='login-status')  # Placeholder for the alert callback
-            ])
+            ],width=7)
         ]),
     dbc.Row([
         dbc.Col([
@@ -151,6 +153,8 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
     button_id = ctx.triggered_id    # can use dash.callback_context for dash version > 1.16.0
 
     if button_id == 'login-button':
+        if username is None:
+            return [], dbc.Alert("Please enter your username!", class_name="text-light alert-danger", duration=4000)
         try:
             df_database = db_connection.df_from_db(f"SELECT supplier, focus, num_search FROM BMT.NewsInput WHERE username = '{username}'")
             df_database = df_database.reset_index(drop=True)
@@ -305,14 +309,13 @@ def generate_excel(n_clicks, sentiment_output, download_type):
     prevent_initial_call=True
 )
 def upload_to_database_input(n_clicks, table_input_data, username):
-    if n_clicks > 0:
-        try:
-            db_connection.upload_data(table_input_data, 'NewsInput', username) 
-            return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Upload Successful"], duration=3000, class_name="text-light alert-success")
-        except Exception as e:
-            return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning")
-    else:
-        return None
+    if username is None:
+        return dbc.Alert("Please enter your username!", class_name="text-light alert-danger", duration=4000)
+    try:
+        db_connection.upload_data(table_input_data, 'NewsInput', username) 
+        return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Upload Successful"], duration=3000, class_name="text-light alert-success")
+    except Exception as e:
+        return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning")
     
 if __name__ == '__main__':
     app.run_server(debug=True)
