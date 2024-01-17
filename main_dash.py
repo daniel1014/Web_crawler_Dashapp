@@ -169,7 +169,7 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
             df_database = db_connection.df_from_db(f"SELECT supplier, focus, num_search FROM BMT.NewsInput WHERE username = '{username}'")
             df_database = df_database.reset_index(drop=True)
             df_database['index'] = df_database.index
-            return df_database.to_dict("records"), dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Login Successful"], duration=3000, class_name="text-light alert-success")
+            return df_database.to_dict("records"), dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Login Successful"], duration=3000, class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
         except Exception as e:
             return [], dbc.Alert(f"Login Failed. Error details:{str(e)}", class_name="text-light alert-warning")
     elif button_id == 'add-input-button':
@@ -243,13 +243,13 @@ def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
     elif ctx.triggered_id == 'sentiment-button':
         # Sentiment Analysis 
         if news_output_data is None:
-            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-light alert-danger", duration=4000), dash.no_update, dash.no_update
+            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update
         for row in news_output_data:
             sentiment_input[row['Supplier']+" "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
             sentiment_input[row['Supplier']+" "+row['Focus']].append({row['Title']:row['Description'][:-4]})
         sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
         df_sentiment_result = pd.DataFrame(sentiment_result).T
-        fig = px.bar(df_sentiment_result, x=df_sentiment_result.columns, y=df_sentiment_result.index, orientation='h', title='Sentiment Analysis Results', text_auto=True, labels={'value':'Sentiment Distribution', 'index':'Supplier Focus', 'variable':'Emotion'},  color_discrete_map={'positive':'green', 'neutral':'grey', 'negative':'red'})
+        fig = px.bar(df_sentiment_result, x=df_sentiment_result.columns, y=df_sentiment_result.index, orientation='h', title='Sentiment Analysis Results', text_auto=True, labels={'value':'Sentiment Distribution', 'index':'Supplier Focus', 'variable':'Emotion'},  color_discrete_map={'positive':'#AECC53', 'neutral':'#DAD8CC', 'negative':'#C70C6F'})
         return tabs, dcc.Graph(figure=fig), all_results, sentiment_result
 
 @app.callback(
@@ -319,13 +319,13 @@ def generate_excel(n_clicks, sentiment_output, download_type):
     prevent_initial_call=True
 )
 def upload_to_database_input(n_clicks, table_input_data, username):
-    if username is None:
-        return dbc.Alert("Please enter your username!", class_name="text-light alert-danger", duration=4000)
+    if username is None or username == "":
+        return dbc.Alert("Please enter your username!", class_name="text-light", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
     try:
         db_connection.upload_data(table_input_data, 'NewsInput', username) 
-        return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Upload Successful"], duration=3000, class_name="text-light alert-success")
+        return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Upload Successful"], duration=3000,  class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
     except Exception as e:
-        return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning")
+        return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning",style={'background-color':'#E52713', 'font-weight':'600'})
     
 if __name__ == '__main__':
     app.run_server(debug=True)
