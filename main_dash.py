@@ -11,14 +11,17 @@ import sentiment_analysis
 import plotly.express as px 
 
 # Initialize the Dash app
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.MORPH, dbc.icons.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
 data_demo = [{'supplier':"Enercon",'focus':'Supply Chain','num_search':'10'}]
 df_database_demo = pd.DataFrame(data_demo).reset_index()
 new_line = [{'supplier':'','focus':'','num_search':'10'}]
 
 # Define the app layout
 app.layout = dbc.Container([
-    html.H1("News Scraper Tool (under development)"),
+    dbc.Row([
+        dbc.Col(html.Img(src='/assets/AECOM_Logo_Black_RGB.png', height="60px"),width="3"),
+        dbc.Col(html.H1("News Scraper Tool (under development)"), align="center")
+    ], align="center", style={'background-color': '#C4C4C4'}),
     dcc.Markdown('''
                  * ##### This tool is used to scrape news from Google Search Engine. Please **Login** with your username to load your historic input data (a new username will be registered if it is not exisiting in database). 
                  * ##### Please enter your desired input query(s) including supplier, focus (eg. Enercon Supply Chain), and number of search. 
@@ -36,7 +39,7 @@ app.layout = dbc.Container([
             dbc.Input(id='username', type='text', placeholder="Enter Your Username", className='mb-2')
             ],width=3),
         dbc.Col([
-            dbc.Button('Login (load your data)', id='login-button', className='btn btn-outline-dark'),
+            dbc.Button('Login (to load your data)', id='login-button', style={'background-color':'#AECC53','font-size': '19px', 'font-weight':'600'}, className='text-dark'),
             ],width='auto'),
         dbc.Col([
             html.Div(id='login-status')  # Placeholder for the alert callback
@@ -44,8 +47,8 @@ app.layout = dbc.Container([
         ]),
     dbc.Row([
         dbc.Col([
-            dbc.Button(['[+] Add Input'], id='add-input-button', className='text-info-emphasis bg-light'),
-            dbc.Button('[-] Delete Selected Row', id='delete-input-button', className='text-info-emphasis bg-light')
+            dbc.Button(['[+] Add Input'], id='add-input-button', className='text-info-emphasis bg-light', style={'margin-top': '10px'}),
+            dbc.Button('[-] Delete Selected Row', id='delete-input-button', className='text-info-emphasis bg-light', style={'margin-top': '10px'})
             ])
         ]),
     dbc.Row([
@@ -93,11 +96,11 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
     dbc.Col(
-        dbc.Button([html.I(className="bi bi-lightbulb"),' Search'], id='search-button', className='text-info bg-warning', size="lg",  style={'font-size': '19px', 'border-radius': '10px'}),
+        dbc.Button([html.I(className="bi bi-lightbulb"),' Search'], id='search-button', size="lg", style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600','padding':'20px'}),
         width="auto"
     ),
     dbc.Col(
-        dbc.Button([html.I(className="bi bi-bar-chart"),' Sentiment Analysis'], id='sentiment-button', className='text-info bg-warning', size="lg", style={'font-size': '19px', 'border-radius': '10px'}),
+        dbc.Button([html.I(className="bi bi-bar-chart"),' Sentiment Analysis'], id='sentiment-button', style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600', 'padding':'20px'}),
         width="auto"
     ),
     ], justify="center", style={'margin-top': '15px'}),
@@ -109,7 +112,8 @@ app.layout = dbc.Container([
             dbc.Button([html.I(className="bi bi-database-up"),' Upload Input to AECOM Database'], 
                         id='upload-button', 
                         className='text-info-emphasis bg-light',
-                        style={"margin-bottom": "20px"},)],
+                        style={"margin-bottom": "20px"},
+                        )],
         width=2),
         dbc.Col([
             html.Div(id='upload-status')  # Placeholder for the alert callback
@@ -127,12 +131,12 @@ app.layout = dbc.Container([
             ),width=4,
         ),
         dbc.Col([
-            dbc.Button([html.I(className="bi bi-download"),' Download News Output'], id='save-button-news', className='text-info bg-light'),
-            dbc.Button([html.I(className="bi bi-download"),' Download Sentiment Analysis Output'], id='save-button-sentiment', className='text-info bg-light')],
+            dbc.Button([html.I(className="bi bi-download"),' Download News Output'], id='save-button-news', className='text-black bg-light'),
+            dbc.Button([html.I(className="bi bi-download"),' Download Sentiment Analysis Output'], id='save-button-sentiment', className='text-black bg-light')],
         width=8
         ),
     ]),
-], fluid=True)
+], fluid=True, style={'background-color': '#F1F1F1'})
 
 # Callback to update the selected rows
 @app.callback(
@@ -159,8 +163,8 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
     button_id = ctx.triggered_id    # can use dash.callback_context for dash version > 1.16.0
 
     if button_id == 'login-button':
-        if username is None:
-            return [], dbc.Alert("Please enter your username!", class_name="text-light alert-danger", duration=4000)
+        if username is None or username == "":
+            return [], dbc.Alert("Please enter your username!", class_name="text-white", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
         try:
             df_database = db_connection.df_from_db(f"SELECT supplier, focus, num_search FROM BMT.NewsInput WHERE username = '{username}'")
             df_database = df_database.reset_index(drop=True)
