@@ -65,7 +65,6 @@ def create_wordcloud_animation(topics_result):
 
     # Save the animation
     ani.save('assets/animation.gif', writer='pillow', fps=1)
-    time.sleep(2)
     return ani
 
 # def update_wordcloud(topics_result):
