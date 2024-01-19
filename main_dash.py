@@ -11,6 +11,7 @@ import sentiment_analysis
 import plotly.express as px 
 
 # Initialize the Dash app
+
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
 data_demo = [{'supplier':"Enercon",'focus':'Supply Chain','num_search':'10'}]
 df_database_demo = pd.DataFrame(data_demo).reset_index()
@@ -34,6 +35,7 @@ app.layout = dbc.Container([
     dcc.Store(id='selected-rows-store', data=[]),   # Store the selected rows 
     dcc.Store(id='news-output-store'),         # Store the news output for download
     dcc.Store(id='sentiment-output-store'),    # Store the sentiment output for download
+    dcc.Store(id='topics-output-store'),       # Store the topics output for download
     dbc.Row([
         dbc.Col([
             dbc.Input(id='username', type='text', placeholder="Enter Your Username", className='mb-2')
@@ -96,16 +98,20 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
     dbc.Col(
-        dbc.Button([html.I(className="bi bi-lightbulb"),' Search'], id='search-button', size="lg", style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600','padding':'20px'}),
+        dbc.Button([html.I(className="bi bi-send"),' Search'], id='search-button', size="lg", style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600','padding':'20px'}),
         width="auto"
     ),
     dbc.Col(
         dbc.Button([html.I(className="bi bi-bar-chart"),' Sentiment Analysis'], id='sentiment-button', style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600', 'padding':'20px'}),
         width="auto"
     ),
+    dbc.Col(
+        dbc.Button([html.I(className="bi bi-lightbulb"),' Topics Analysis (Wordcloud)'], id='topics-button', style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600', 'padding':'20px'}),
+        width="auto"
+    ),
     ], justify="center", style={'margin-top': '15px'}),
     dcc.Loading(id="Loading", type="cube", children=[html.Div(id='tabs-content')]),
-    dcc.Tabs(id='tabs',className='custom-tabs-container'),
+    dcc.Tabs(id='tabs',className='custom-tabs-container', value='tab-1'),
     html.Hr(style={"height":"2px","border-width":"0","color":"gray","background-color":"gray"}),
     dbc.Row([
         dbc.Col([
@@ -132,7 +138,7 @@ app.layout = dbc.Container([
         ),
         dbc.Col([
             dbc.Button([html.I(className="bi bi-download"),' Download News Output'], id='save-button-news', className='text-black bg-light'),
-            dbc.Button([html.I(className="bi bi-download"),' Download Sentiment Analysis Output'], id='save-button-sentiment', className='text-black bg-light')],
+            dbc.Button([html.I(className="bi bi-download"),' Download Sentiment Analysis Output'], id='save-button-sentiment', className='text-black bg-light'),],
         width=8
         ),
     ]),
@@ -171,7 +177,7 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
             df_database['index'] = df_database.index
             return df_database.to_dict("records"), dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Login Successful"], duration=3000, class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
         except Exception as e:
-            return [], dbc.Alert(f"Login Failed. Error details:{str(e)}", class_name="text-light alert-warning")
+            return [], dbc.Alert(f"Login Failed. Error details:{str(e)}", class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'})
     elif button_id == 'add-input-button':
         df_input = pd.DataFrame(all_rows)
         df_input = df_input.reset_index(drop=True)
@@ -194,14 +200,16 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
     [Output('tabs','children'),
      Output('tabs-content', 'children'), 
      Output('news-output-store', 'data'), 
-     Output('sentiment-output-store', 'data')],
+     Output('sentiment-output-store', 'data'),
+     Output('topics-output-store', 'data')],
     [Input('search-button', 'n_clicks'),
-     Input('sentiment-button', 'n_clicks')],
+     Input('sentiment-button', 'n_clicks'),
+     Input('topics-button', 'n_clicks')],
     [State('table_input', 'rowData'),
      State('news-output-store', 'data')],
     prevent_initial_call=True
 )
-def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
+def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_output_data):
     all_results = []
     sentiment_input = {}
     tabs = []
@@ -212,8 +220,8 @@ def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
             focus_input = row['focus']
             num_search = int(row['num_search'])
             query = supplier_input + " " + focus_input
-            tab_label = f"{supplier_input} - {focus_input}"         # Create tab label
-            tabs.append(dcc.Tab(label=tab_label, value=tab_label, className='text-primary-emphasis bg-white strong'))  # Add tab dynamically
+            tab_label = f"{supplier_input} - {focus_input}"         # Create tab label dynamically
+            tabs.append(dcc.Tab(label=tab_label, value=tab_label+"-table", className='text-primary-emphasis bg-white strong'))  # Add tab dynamically
             search_results = s.google_search(query, num=num_search)
             for result in search_results:
                 if " ... " in result['snippet']:
@@ -239,7 +247,7 @@ def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
             {column: {'value': str(value), 'type': 'markdown'} for column, value in row.items()}
             for row in all_results
             ]     
-        ), all_results, dash.no_update
+        ), all_results, dash.no_update, dash.no_update
     elif ctx.triggered_id == 'sentiment-button':
         # Sentiment Analysis 
         if news_output_data is None:
@@ -250,7 +258,23 @@ def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
         sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
         df_sentiment_result = pd.DataFrame(sentiment_result).T
         fig = px.bar(df_sentiment_result, x=df_sentiment_result.columns, y=df_sentiment_result.index, orientation='h', title='Sentiment Analysis Results', text_auto=True, labels={'value':'Sentiment Distribution', 'index':'Supplier Focus', 'variable':'Emotion'},  color_discrete_map={'positive':'#AECC53', 'neutral':'#DAD8CC', 'negative':'#C70C6F'})
-        return tabs, dcc.Graph(figure=fig), all_results, sentiment_result
+        return tabs, dcc.Graph(figure=fig), all_results, sentiment_result, dash.no_update
+    elif ctx.triggered_id == 'topics-button':
+        if news_output_data is None:
+            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update
+         # Add tab dynamically
+        for row in table_input_data:
+            supplier_input = row['supplier']
+            focus_input = row['focus']
+            tab_label = f"{supplier_input} - {focus_input}"         # Create tab label dynamically
+            tabs.append(dcc.Tab(label=tab_label, value=tab_label+"-wordcloud", className='text-primary-emphasis bg-white strong')) 
+        for row in news_output_data:
+            sentiment_input[row['Supplier']+" - "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
+            sentiment_input[row['Supplier']+" - "+row['Focus']].append({row['Title']:row['Description'][:-4]})
+        topics_result = sentiment_analysis.topics_analysis(sentiment_input) 
+        print(list(topics_result.keys())[0])
+        sentiment_analysis.create_wordcloud_animation(topics_result)
+        return tabs, html.Div([html.Img(src='/assets/animation.gif')], style={'display': 'flex', 'justify-content': 'center'}), all_results, dash.no_update, topics_result
 
 @app.callback(
     Output('tabs-content', 'children', allow_duplicate=True),
@@ -259,9 +283,9 @@ def update_output(n_clicks, n_clicks_s, table_input_data, news_output_data):
     prevent_initial_call=True
 )
 def render_content_tabs(tabs, table_data):
-    if tabs != "tab-1":             # tab-1 is the default tab at the initial load of the app
+    if tabs != "tab-1" and 'table' in tabs:             # tab-1 is the default tab at the initial load of the app
         # Filter the table data based on the selected tab
-        print(tabs)
+        tabs = tabs.replace("-table", "")               # Remove the '-table' suffix from the tab label
         supplier, focus =  tabs.split(' - ')
         print(supplier, focus)
         filtered_data = [row for row in table_data if row['Supplier'] == supplier and row['Focus'] == focus]

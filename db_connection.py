@@ -43,18 +43,19 @@ def upload_data(data: list, table_name: str, username: str):
     cursor = cnxn.cursor()
     schema = 'BMT'
 
+    # Delete all records of the user
+    delete_all_query = f'''
+    DELETE FROM {schema}.{table_name}
+    WHERE username = ?
+    '''
+    cursor.execute(delete_all_query, username)
+
     for record in data:
-        # Delete records if the current input data exists in the table
-        delete_query = f'''
-        DELETE FROM {schema}.{table_name}
-        WHERE supplier = ? AND focus = ? AND num_search = ? AND username = ?
-        '''
         # Upload data to the table
         insert_query = f'''
             INSERT INTO {schema}.{table_name} (supplier, focus, num_search, username)
             VALUES (?, ?, ?, ?)
         '''
-        cursor.execute(delete_query, record['supplier'], record['focus'], record['num_search'], username)
         cursor.execute(insert_query, record['supplier'], record['focus'], record['num_search'], username)
 
     # Commit the changes to the database
