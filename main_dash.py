@@ -251,7 +251,7 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
     elif ctx.triggered_id == 'sentiment-button':
         # Sentiment Analysis 
         if news_output_data is None:
-            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update
+            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
         for row in news_output_data:
             sentiment_input[row['Supplier']+" "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
             sentiment_input[row['Supplier']+" "+row['Focus']].append({row['Title']:row['Description'][:-4]})
@@ -261,7 +261,7 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
         return tabs, dcc.Graph(figure=fig), all_results, sentiment_result, dash.no_update
     elif ctx.triggered_id == 'topics-button':
         if news_output_data is None:
-            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update
+            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
          # Add tab dynamically
         for row in table_input_data:
             supplier_input = row['supplier']
