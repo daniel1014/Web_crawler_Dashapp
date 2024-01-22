@@ -16,6 +16,7 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.
 data_demo = [{'supplier':"Enercon",'focus':'Supply Chain','num_search':'10'}]
 df_database_demo = pd.DataFrame(data_demo).reset_index()
 new_line = [{'supplier':'','focus':'','num_search':'10'}]
+db_conn = db_connection.DatabaseConnection()
 
 # Define the app layout
 app.layout = dbc.Container([
@@ -173,7 +174,7 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
         if username is None or username == "":
             return [], dbc.Alert("Please enter your username!", class_name="text-white", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
         try:
-            df_database = db_connection.df_from_db(f"SELECT supplier, focus, num_search FROM BMT.NewsInput WHERE username = '{username}'")
+            df_database = db_conn.df_from_db(f"SELECT supplier, focus, num_search FROM BMT.NewsInput WHERE username = '{username}'")
             df_database = df_database.reset_index(drop=True)
             df_database['index'] = df_database.index
             return df_database.to_dict("records"), dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Login Successful"], duration=3000, class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
@@ -360,15 +361,18 @@ def generate_excel(n_clicks, sentiment_output, download_type):
 @app.callback(
     Output('upload-status', 'children'),
     [Input('upload-button', 'n_clicks')],
-    [State('table_input', 'rowData'), State('username', 'value')],
+    [State('table_input', 'rowData'), 
+     State('username', 'value'), 
+     State('news-output-store', 'data')],
     prevent_initial_call=True
 )
-def upload_to_database_input(n_clicks, table_input_data, username):
+def upload_to_database_input(n_clicks, table_input_data, username, all_results):
     if username is None or username == "":
         return dbc.Alert("Please enter your username!", class_name="text-light", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
     try:
-        db_connection.upload_data(table_input_data, 'NewsInput', username) 
-        return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Upload Successful"], duration=3000,  class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
+        db_conn.upload_data_input(table_input_data, 'NewsInput', username) 
+        db_conn.upload_data_output(all_results, 'NewsOutput', username)
+        return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Saved both your input and output Successful"], duration=3000,  class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
     except Exception as e:
         return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning",style={'background-color':'#E52713', 'font-weight':'600'})
     
