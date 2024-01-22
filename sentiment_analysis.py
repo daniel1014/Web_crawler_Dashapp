@@ -47,34 +47,23 @@ def topics_analysis(news_output):
 
     return topics_result
 
-def update_wordcloud(i, topics_result):
-    # Get a different key from the topics_result dictionary for each frame
-    key = list(topics_result.keys())[0]
-    
+def update_wordcloud(i, topics_result, tab):    
     # Generate a word cloud from the topic's content
-    wordcloud = WordCloud(width=1000, height=600).generate(' '.join(topics_result[key]))
+    wordcloud = WordCloud(width=1000, height=600).generate(' '.join(topics_result[tab]))
     
     # Clear the current axes and display the new word cloud
     plt.gca().clear()
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis("off")
 
-def create_wordcloud_animation(topics_result):
+def create_wordcloud_animation(topics_result, tab):
     fig = plt.figure()
-    ani = animation.FuncAnimation(fig, update_wordcloud, fargs=(topics_result,), frames=3, interval=1500, blit=False)
+    ani = animation.FuncAnimation(fig, update_wordcloud, fargs=(topics_result, tab), frames=3, interval=1500, blit=False)
 
     # Save the animation
-    ani.save('assets/animation.gif', writer='pillow', fps=1)
-    return ani
-
-# def update_wordcloud(topics_result):
-#     first_key = list(topics_result.keys())[0]
-#     wordcloud = WordCloud(width=800, height=400).generate(' '.join(topics_result[first_key]))
-#     plt.imshow(wordcloud, interpolation='bilinear')
-#     plt.axis("off")
-#     fig = plt.figure()
-#     ani = animation.FuncAnimation(fig, update_wordcloud, frames=3, interval=1500, blit=False)
-#     ani.save('animation.gif', writer='pillow')
+    filename = 'assets/wordcloud_{tab}_{time}.gif'.format(tab=tab, time=time.time())
+    ani.save(filename, writer='pillow', fps=1)
+    return filename
 
 if __name__ == "__main__":
     company_focus_data = {

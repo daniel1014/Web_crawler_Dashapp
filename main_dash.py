@@ -9,6 +9,7 @@ import db_connection
 import gsearch as s
 import sentiment_analysis 
 import plotly.express as px 
+import time
 
 # Initialize the Dash app
 
@@ -90,7 +91,7 @@ app.layout = dbc.Container([
                 ],
                 rowData=df_database_demo.to_dict("records"),
                 columnSize="sizeToFit",
-                defaultColDef={'editable': True, 'sortable': True, 'filter': True},
+                defaultColDef={'editable': True, 'sortable': True, 'filter': True, 'resizable': True},
                 style={'height': '200px'},
                 dashGridOptions={"rowSelection": "multiple",},
             )
@@ -110,7 +111,8 @@ app.layout = dbc.Container([
         width="auto"
     ),
     ], justify="center", style={'margin-top': '15px'}),
-    dcc.Loading(id="Loading", type="cube", children=[html.Div(id='tabs-content')]),
+    dcc.Loading(id="Loading", type="cube", children=[html.Div(id='tabs-content'),html.Div([html.Img(id='wordcloud-image')], style={'display': 'flex', 'justify-content': 'center'})]), 
+    # html.Div([html.Img(id='wordcloud-image')], style={'display': 'flex', 'justify-content': 'center'}),
     dcc.Tabs(id='tabs',className='custom-tabs-container', value='tab-1'),
     html.Hr(style={"height":"2px","border-width":"0","color":"gray","background-color":"gray"}),
     dbc.Row([
@@ -198,6 +200,7 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
 # Callback to update the output table
 @app.callback(
     [Output('tabs','children'),
+     Output('wordcloud-image', 'src'),
      Output('tabs-content', 'children'), 
      Output('news-output-store', 'data'), 
      Output('sentiment-output-store', 'data'),
@@ -230,7 +233,7 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
                     date = ""
                     description = result['snippet']
                 all_results.append({'Supplier': supplier_input, 'Focus': focus_input, 'Title': result['title'], 'Date' : date, 'Description': description, 'URL': result['link']})
-        return tabs, DataTable(
+        return tabs, None, DataTable(
             id='table_output',
             columns=[{"name": i, "id": i} for i in ['Supplier', 'Focus', 'Title', 'Date', 'Description', 'URL']],
             data=all_results[0:10],
@@ -239,6 +242,7 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
             # page_size=10,
             style_cell={'textAlign': 'left'},
             style_cell_conditional=[
+                {'if': {'column_id': 'Title'}, 'maxWidth': '500px'},
                 {'if': {'column_id': 'Description'}, 'maxWidth': '700px'},  # Set width for Description column
                 {'if': {'column_id': 'URL'}, 'textDecoration': 'underline', 'cursor': 'pointer'}
             ],
@@ -246,7 +250,13 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
             tooltip_data=[
             {column: {'value': str(value), 'type': 'markdown'} for column, value in row.items()}
             for row in all_results
-            ]     
+            ],
+            style_table={
+                'maxHeight': '500px',
+                'overflowY': 'scroll',
+                'maxWidth': '100%',
+                'overflowX': 'scroll',
+            },     
         ), all_results, dash.no_update, dash.no_update
     elif ctx.triggered_id == 'sentiment-button':
         # Sentiment Analysis 
@@ -258,7 +268,7 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
         sentiment_result = sentiment_analysis.sentiment_analysis(sentiment_input)
         df_sentiment_result = pd.DataFrame(sentiment_result).T
         fig = px.bar(df_sentiment_result, x=df_sentiment_result.columns, y=df_sentiment_result.index, orientation='h', title='Sentiment Analysis Results', text_auto=True, labels={'value':'Sentiment Distribution', 'index':'Supplier Focus', 'variable':'Emotion'},  color_discrete_map={'positive':'#AECC53', 'neutral':'#DAD8CC', 'negative':'#C70C6F'})
-        return tabs, dcc.Graph(figure=fig), all_results, sentiment_result, dash.no_update
+        return tabs, None, dcc.Graph(figure=fig), dash.no_update, sentiment_result, dash.no_update
     elif ctx.triggered_id == 'topics-button':
         if news_output_data is None:
             return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
@@ -267,22 +277,27 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
             supplier_input = row['supplier']
             focus_input = row['focus']
             tab_label = f"{supplier_input} - {focus_input}"         # Create tab label dynamically
-            tabs.append(dcc.Tab(label=tab_label, value=tab_label+"-wordcloud", className='text-primary-emphasis bg-white strong')) 
+            tabs.append(dcc.Tab(label=tab_label, value=tab_label+"-wordcloud", className='text-primary-emphasis bg-white strong'))
+        # print(news_output_data) 
         for row in news_output_data:
             sentiment_input[row['Supplier']+" - "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
             sentiment_input[row['Supplier']+" - "+row['Focus']].append({row['Title']:row['Description'][:-4]})
         topics_result = sentiment_analysis.topics_analysis(sentiment_input) 
-        print(list(topics_result.keys())[0])
-        sentiment_analysis.create_wordcloud_animation(topics_result)
-        return tabs, html.Div([html.Img(src='/assets/animation.gif')], style={'display': 'flex', 'justify-content': 'center'}), all_results, dash.no_update, topics_result
+        # Generate the word cloud and save it as a GIF
+        filename = sentiment_analysis.create_wordcloud_animation(topics_result, list(topics_result.keys())[0])
+        # Return the URL of the GIF with a unique query string to force the browser to reload it
+        return tabs, '/{}'.format(filename), None, dash.no_update, dash.no_update, topics_result   
 
+# Callback to render the content of the tabs
 @app.callback(
-    Output('tabs-content', 'children', allow_duplicate=True),
-    Input('tabs', 'value'),
+    [Output('tabs-content', 'children', allow_duplicate=True), 
+    Output('wordcloud-image', 'src', allow_duplicate=True)],
+    [Input('tabs', 'value'),
+    Input('topics-output-store', 'data')],
     State('news-output-store', 'data'),
     prevent_initial_call=True
 )
-def render_content_tabs(tabs, table_data):
+def render_content_tabs(tabs, topics_result, table_data):
     if tabs != "tab-1" and 'table' in tabs:             # tab-1 is the default tab at the initial load of the app
         # Filter the table data based on the selected tab
         tabs = tabs.replace("-table", "")               # Remove the '-table' suffix from the tab label
@@ -303,7 +318,14 @@ def render_content_tabs(tabs, table_data):
             {column: {'value': str(value), 'type': 'markdown'} for column, value in row.items()}
             for row in filtered_data
             ]     
-        )
+        ), dash.no_update
+        # Callback to render the content of the tabs
+    elif tabs != "tab-1" and 'wordcloud' in tabs:
+        tabs = tabs.replace("-wordcloud", "")               # Remove the '-wordcloud' suffix from the tab label
+        filename = sentiment_analysis.create_wordcloud_animation(topics_result, tabs)
+        return dash.no_update, '/{}'.format(filename)
+    else:
+        return dash.no_update, dash.no_update
 
 # Callback to download the News Output
 @app.callback(
