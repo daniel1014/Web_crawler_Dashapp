@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.animation import PillowWriter
-from wordcloud import WordCloud, STOPWORDS
+from wordcloud import WordCloud
 import time
 
 def analyze_sentiment(tweet):

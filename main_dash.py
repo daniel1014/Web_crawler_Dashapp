@@ -9,7 +9,6 @@ import db_connection
 import gsearch as s
 import sentiment_analysis 
 import plotly.express as px 
-import time
 
 # Initialize the Dash app
 
