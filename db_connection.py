@@ -62,7 +62,7 @@ class DatabaseConnection:
                 INSERT INTO {schema}.{table_name} (Supplier, Focus, Title, Date, Description, URL, Username)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             '''
-            cursor.execute(insert_query, record['supplier'], record['focus'], record['title'], record['date'], record['description'], record['url'], username)
+            cursor.execute(insert_query, record['Supplier'], record['Focus'], record['Title'], record['Date'], record['Description'], record['URL'], username)
 
         cnxn.commit()
         cursor.close()

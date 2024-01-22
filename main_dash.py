@@ -42,7 +42,7 @@ app.layout = dbc.Container([
             dbc.Input(id='username', type='text', placeholder="Enter Your Username", className='mb-2')
             ],width=3),
         dbc.Col([
-            dbc.Button('Login (to load your data)', id='login-button', style={'background-color':'#AECC53','font-size': '19px', 'font-weight':'600'}, className='text-dark'),
+            dbc.Button('Login (import your profile)', id='login-button', style={'background-color':'#AECC53','font-size': '19px', 'font-weight':'600'}, className='text-dark'),
             ],width='auto'),
         dbc.Col([
             html.Div(id='login-status')  # Placeholder for the alert callback
@@ -117,7 +117,7 @@ app.layout = dbc.Container([
     html.Hr(style={"height":"2px","border-width":"0","color":"gray","background-color":"gray"}),
     dbc.Row([
         dbc.Col([
-            dbc.Button([html.I(className="bi bi-database-up"),' Upload Input to AECOM Database'], 
+            dbc.Button([html.I(className="bi bi-database-up"),' Save your Input & Output into AECOM Database'], 
                         id='upload-button', 
                         className='text-info-emphasis bg-light',
                         style={"margin-bottom": "20px"},
@@ -369,12 +369,22 @@ def generate_excel(n_clicks, sentiment_output, download_type):
 def upload_to_database_input(n_clicks, table_input_data, username, all_results):
     if username is None or username == "":
         return dbc.Alert("Please enter your username!", class_name="text-light", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
+    elif table_input_data is None or table_input_data == []:
+        return dbc.Alert("Please enter your input data!", class_name="text-light", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
+    elif all_results is None or all_results == []:
+        return dbc.Alert("Please click 'Search' button first to generate the news output!", class_name="text-light", style={'background-color':'#E52713', 'font-weight':'600'}, duration=4000)
+    
     try:
         db_conn.upload_data_input(table_input_data, 'NewsInput', username) 
-        db_conn.upload_data_output(all_results, 'NewsOutput', username)
-        return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Saved both your input and output Successful"], duration=3000,  class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
     except Exception as e:
-        return dbc.Alert(f"Upload Failed. Error details:{str(e)}", class_name="text-light alert-warning",style={'background-color':'#E52713', 'font-weight':'600'})
-    
+        return dbc.Alert(f"Upload to NewsInput Failed. Error details:{str(e)}", class_name="text-light alert-warning",style={'background-color':'#E52713', 'font-weight':'600'})
+
+    try:
+        db_conn.upload_data_output(all_results, 'NewsOutput', username)
+    except Exception as e:
+        return dbc.Alert(f"Upload to NewsOutput Failed. Error details:{str(e)}", class_name="text-light alert-warning",style={'background-color':'#E52713', 'font-weight':'600'})
+
+    return dbc.Alert([html.I(className="bi bi-check-circle-fill me-2")," Saved both your input and output Successful"], duration=3000,  class_name="text-dark", style={'background-color':'#AECC53', 'font-weight':'600'})
+
 if __name__ == '__main__':
     app.run_server(debug=True)
