@@ -56,47 +56,53 @@ app.layout = dbc.Container([
         ]),
     dbc.Row([
         dbc.Col([
-            AgGrid(
-                id="table_input",
-                columnDefs=[
-                    {
-                        "headerName": "Index", 
-                        "field": "index",
-                        'width':50,
-                        "checkboxSelection": True,},
-                    {
-                        "headerName": "Supplier",
-                        "field": "supplier",
-                        "cellEditor": "agTextCellEditor",
-                         "cellEditorParams": {
-                         "maxLength": 20,
+            dcc.Loading(
+                id="Loading",
+                type="circle",
+                children=[
+                AgGrid(
+                    id="table_input",
+                    columnDefs=[
+                        {
+                            "headerName": "Index", 
+                            "field": "index",
+                            'width':50,
+                            "checkboxSelection": True,},
+                        {
+                            "headerName": "Supplier",
+                            "field": "supplier",
+                            "cellEditor": "agTextCellEditor",
+                            "cellEditorParams": {
+                            "maxLength": 20,
+                            },
                         },
-                    },
-                    {
-                        "headerName": "Focus",
-                        "field": "focus",
-                        "cellEditor": "agTextCellEditor",
-                         "cellEditorParams": {
-                         "maxLength": 20,
+                        {
+                            "headerName": "Focus",
+                            "field": "focus",
+                            "cellEditor": "agTextCellEditor",
+                            "cellEditorParams": {
+                            "maxLength": 20,
+                            },
                         },
-                    },
-                    {
-                        "headerName": "Number of Search",
-                        "field": "num_search",
-                        "cellEditor": "agSelectCellEditor",
-                        "cellEditorParams": {
-                            "values": [str(i) for i in range(5, 11, 5)]
+                        {
+                            "headerName": "Number of Search",
+                            "field": "num_search",
+                            "cellEditor": "agSelectCellEditor",
+                            "cellEditorParams": {
+                                "values": [str(i) for i in range(5, 11, 5)]
+                            },
                         },
-                    },
-                ],
-                rowData=df_database_demo.to_dict("records"),
-                columnSize="sizeToFit",
-                defaultColDef={'editable': True, 'sortable': True, 'filter': True, 'resizable': True},
-                style={'height': '200px'},
-                dashGridOptions={"rowSelection": "multiple",},
-            )
-        ])
-    ]),
+                    ],
+                    rowData=df_database_demo.to_dict("records"),
+                    columnSize="sizeToFit",
+                    defaultColDef={'editable': True, 'sortable': True, 'filter': True, 'resizable': True},
+                    style={'height': '200px'},
+                    dashGridOptions={"rowSelection": "multiple",},
+                    ),
+                ]),
+            ]),
+        ]),
+    html.Hr(style={"height":"2px","border-width":"0","color":"gray","background-color":"gray"}),
     dbc.Row([
     dbc.Col(
         dbc.Button([html.I(className="bi bi-send"),' Search'], id='search-button', size="lg", style={'background-color':'#009A9B','font-size': '19px', 'border-radius': '10px','font-weight':'600','padding':'20px'}),
@@ -112,7 +118,6 @@ app.layout = dbc.Container([
     ),
     ], justify="center", style={'margin-top': '15px'}),
     dcc.Loading(id="Loading", type="cube", children=[html.Div(id='tabs-content'),html.Div([html.Img(id='wordcloud-image')], style={'display': 'flex', 'justify-content': 'center'})]), 
-    # html.Div([html.Img(id='wordcloud-image')], style={'display': 'flex', 'justify-content': 'center'}),
     dcc.Tabs(id='tabs',className='custom-tabs-container', value='tab-1'),
     html.Hr(style={"height":"2px","border-width":"0","color":"gray","background-color":"gray"}),
     dbc.Row([
@@ -218,6 +223,8 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
     tabs = []
     # Search Results
     if ctx.triggered_id == 'search-button':
+        if table_input_data is None or table_input_data == []:
+            return dash.no_update, dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please enter your input data!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
         for row in table_input_data:
             supplier_input = row['supplier']
             focus_input = row['focus']
@@ -261,7 +268,7 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
     elif ctx.triggered_id == 'sentiment-button':
         # Sentiment Analysis 
         if news_output_data is None:
-            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
         for row in news_output_data:
             sentiment_input[row['Supplier']+" "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
             sentiment_input[row['Supplier']+" "+row['Focus']].append({row['Title']:row['Description'][:-4]})
@@ -271,17 +278,18 @@ def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_out
         return tabs, None, dcc.Graph(figure=fig), dash.no_update, sentiment_result, dash.no_update
     elif ctx.triggered_id == 'topics-button':
         if news_output_data is None:
-            return dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
+            return dash.no_update, dash.no_update, dbc.Alert([html.I(className="bi bi-exclamation-triangle-fill me-2")," Please click 'Search' button first to generate the news output!"], class_name="text-dark", style={'background-color':'#FFCE00', 'font-weight':'600'}, duration=4000), dash.no_update, dash.no_update, dash.no_update
          # Add tab dynamically
         for row in table_input_data:
             supplier_input = row['supplier']
             focus_input = row['focus']
             tab_label = f"{supplier_input} - {focus_input}"         # Create tab label dynamically
             tabs.append(dcc.Tab(label=tab_label, value=tab_label+"-wordcloud", className='text-primary-emphasis bg-white strong'))
-        # print(news_output_data) 
         for row in news_output_data:
-            sentiment_input[row['Supplier']+" - "+row['Focus']] = [] if row['Supplier']+" "+row['Focus'] not in sentiment_input else sentiment_input[row['Supplier']+" "+row['Focus']]
-            sentiment_input[row['Supplier']+" - "+row['Focus']].append({row['Title']:row['Description'][:-4]})
+            key = row['Supplier']+" - "+row['Focus']
+            if key not in sentiment_input:
+                sentiment_input[key] = []
+            sentiment_input[key].append({row['Title']:row['Description'][:-4]})
         topics_result = sentiment_analysis.topics_analysis(sentiment_input) 
         # Generate the word cloud and save it as a GIF
         filename = sentiment_analysis.create_wordcloud_animation(topics_result, list(topics_result.keys())[0])
@@ -302,7 +310,6 @@ def render_content_tabs(tabs, topics_result, table_data):
         # Filter the table data based on the selected tab
         tabs = tabs.replace("-table", "")               # Remove the '-table' suffix from the tab label
         supplier, focus =  tabs.split(' - ')
-        print(supplier, focus)
         filtered_data = [row for row in table_data if row['Supplier'] == supplier and row['Focus'] == focus]
         return DataTable(
             id='table_output',

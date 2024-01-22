@@ -44,12 +44,11 @@ def topics_analysis(news_output):
             for title, description in news.items():
                 topics.extend(analyze_topics(title + description))
         topics_result[company_focus] = topics
-
     return topics_result
 
 def update_wordcloud(i, topics_result, tab):    
     # Generate a word cloud from the topic's content
-    wordcloud = WordCloud(width=1000, height=600).generate(' '.join(topics_result[tab]))
+    wordcloud = WordCloud(collocations=False, background_color="white").generate(' '.join(topics_result[tab]))
     
     # Clear the current axes and display the new word cloud
     plt.gca().clear()
@@ -57,7 +56,8 @@ def update_wordcloud(i, topics_result, tab):
     plt.axis("off")
 
 def create_wordcloud_animation(topics_result, tab):
-    fig = plt.figure()
+    fig = plt.figure(figsize=(9, 6))
+    fig.patch.set_facecolor('#C4C4C4')  # Set the outside background color 
     ani = animation.FuncAnimation(fig, update_wordcloud, fargs=(topics_result, tab), frames=3, interval=1500, blit=False)
 
     # Save the animation
