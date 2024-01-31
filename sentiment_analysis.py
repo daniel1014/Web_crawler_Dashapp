@@ -9,7 +9,9 @@ from matplotlib.animation import PillowWriter
 from wordcloud import WordCloud
 import time
 
+
 def analyze_sentiment(tweet):
+    """ Analyze the sentiment of each tweet, return 'positive', 'neutral' or 'negative'"""
     analysis = TextBlob(tweet)
     if analysis.sentiment.polarity > 0:
         return 'positive'
@@ -17,12 +19,9 @@ def analyze_sentiment(tweet):
         return 'neutral'
     else:
         return 'negative'
-    
-def analyze_topics(tweet):
-    analysis=TextBlob(tweet, np_extractor=ConllExtractor())
-    return analysis.noun_phrases
 
 def sentiment_analysis(news_output):
+    """ Analyze the sentiment of each tweet, return a dictionary of the sentiment count for each company focus"""
     sentiment_result = {}
 
     for company_focus, all_news in news_output.items():
@@ -35,18 +34,23 @@ def sentiment_analysis(news_output):
     
     return sentiment_result
 
+def analyze_topics(tweet):
+    """ Extract the topics of each tweet, return a list of topics"""
+    analysis=TextBlob(tweet, np_extractor=ConllExtractor())
+    return analysis.noun_phrases
+
 def topics_analysis(news_output):
+    """ Analyze the topics of each tweet, return a dictionary of the topics for each company focus"""
     topics_result = {}
 
     for company_focus, all_news in news_output.items():
-        topics = []
-        for news in all_news:
-            for title, description in news.items():
-                topics.extend(analyze_topics(title + description))
+        # Use list comprehension to improve readability and performance
+        topics = [topic for news in all_news for title, description in news.items() for topic in analyze_topics(title + description)]
         topics_result[company_focus] = topics
     return topics_result
 
-def update_wordcloud(i, topics_result, tab):    
+def update_wordcloud(i, topics_result, tab):  
+    """ Generate the word cloud for each topic"""  
     # Generate a word cloud from the topic's content
     wordcloud = WordCloud(collocations=False, background_color="white").generate(' '.join(topics_result[tab]))
     
@@ -56,15 +60,17 @@ def update_wordcloud(i, topics_result, tab):
     plt.axis("off")
 
 def create_wordcloud_animation(topics_result, tab):
+    """ Create a word cloud animation for each topic, return the filename of the animation"""
     fig = plt.figure(figsize=(9, 6))
     fig.patch.set_facecolor('#C4C4C4')  # Set the outside background color 
     ani = animation.FuncAnimation(fig, update_wordcloud, fargs=(topics_result, tab), frames=3, interval=1500, blit=False)
 
     # Save the animation
-    filename = 'assets/wordcloud_{tab}_{time}.gif'.format(tab=tab, time=time.time())
+    filename = f'assets/wordcloud_{tab}_{time.time()}.gif'
     ani.save(filename, writer='pillow', fps=1)
     return filename
 
+# Local Test 
 if __name__ == "__main__":
     company_focus_data = {
         'Enercon Supply Chain': [
@@ -84,6 +90,6 @@ if __name__ == "__main__":
 
     result = sentiment_analysis(company_focus_data)
 
-    # Output the result in JSON format
-    json_result = json.dumps(result, indent=2)
-    print(json_result)
+    for tab, topics_result in result.items():
+        filename = create_wordcloud_animation(topics_result, tab)
+        print(f"Word cloud animation saved as {filename}")

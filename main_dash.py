@@ -97,7 +97,7 @@ app.layout = dbc.Container([
                     columnSize="sizeToFit",
                     defaultColDef={'editable': True, 'sortable': True, 'filter': True, 'resizable': True},
                     style={'height': '200px'},
-                    dashGridOptions={"rowSelection": "multiple",},
+                    dashGridOptions={"rowSelection": "multiple","stopEditingWhenCellsLoseFocus": True, "singleClickEdit": True},
                     ),
                 ]),
             ]),
@@ -218,6 +218,7 @@ def update_input(login_clicks, add_input_clicks, delete_clicks, username, all_ro
     prevent_initial_call=True
 )
 def update_output(n_clicks, n_clicks_s, n_clicks_s_s, table_input_data, news_output_data):
+    """ Update the output table and the tabs"""
     all_results = []
     sentiment_input = {}
     tabs = []
@@ -342,7 +343,7 @@ def render_content_tabs(tabs, topics_result, table_data):
      State('dropdown', 'value')],
      prevent_initial_call=True
 )
-def generate_excel(n_clicks, all_results, download_type):
+def generate_news_output_download(n_clicks, all_results, download_type):
     df = pd.DataFrame(all_results)
     if download_type == "csv":
         return dcc.send_data_frame(df.to_csv, "news_output.csv")
@@ -357,7 +358,7 @@ def generate_excel(n_clicks, all_results, download_type):
      State('dropdown', 'value')],
      prevent_initial_call=True
 )
-def generate_excel(n_clicks, sentiment_output, download_type):
+def generate_sentiment_analysis_download(n_clicks, sentiment_output, download_type):
     df = pd.DataFrame(sentiment_output).T.reset_index().rename(columns={'index':'Supplier Focus'})
     if download_type == "csv":
         return dcc.send_data_frame(df.to_csv, "sentiment_analysis_output.csv")
